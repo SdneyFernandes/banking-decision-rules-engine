@@ -15,7 +15,7 @@ Progress:
 - [x] Maven build and executable JAR
 - [x] Initial architectural boundaries
 - [x] Application configuration
-- [ ] PostgreSQL development environment
+- [x] PostgreSQL development environment
 - [ ] Java ↔ PostgreSQL connection
 - [ ] Flyway migrations
 - [ ] JPA persistence model
@@ -172,4 +172,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 10.5 — PostgreSQL Development Environment.
+**Current next step:** Phase 10.6 — Java ↔ PostgreSQL Connection.
