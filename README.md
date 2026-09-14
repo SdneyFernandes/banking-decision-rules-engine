@@ -14,7 +14,7 @@ Progress:
 - [x] Spring Boot application
 - [x] Maven build and executable JAR
 - [x] Initial architectural boundaries
-- [ ] Application configuration
+- [x] Application configuration
 - [ ] PostgreSQL development environment
 - [ ] Java ↔ PostgreSQL connection
 - [ ] Flyway migrations
@@ -172,4 +172,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 10.4 — Application Configuration.
+**Current next step:** Phase 10.5 — PostgreSQL Development Environment.
