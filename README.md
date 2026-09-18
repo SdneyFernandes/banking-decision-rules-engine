@@ -16,7 +16,7 @@ Progress:
 - [x] Initial architectural boundaries
 - [x] Application configuration
 - [x] PostgreSQL development environment
-- [ ] Java ↔ PostgreSQL connection
+- [x] Java ↔ PostgreSQL connection
 - [ ] Flyway migrations
 - [ ] JPA persistence model
 - [ ] Repository layer
@@ -62,7 +62,7 @@ Future responsibilities include controllers, request/response DTOs, validation a
 
 ### Infrastructure
 
-Contains technical implementations such as PostgreSQL, JPA/Hibernate, Spring Data and Flyway.
+Contains technical implementations such as PostgreSQL, JDBC, JPA/Hibernate, Spring Data and Flyway.
 
 ## Domain Direction
 
@@ -101,19 +101,177 @@ Priority + First Match Wins
 - Java 21
 - Spring Boot 4.1.1
 - Spring MVC
+- Spring JDBC
+- HikariCP
+- PostgreSQL 15
+- Docker Compose
 - Maven
 - Git
 
 Planned for the current foundation phase:
 
-- PostgreSQL
-- SQL
-- Flyway
+- SQL schema versioning with Flyway
 - JPA
 - Hibernate
 - Spring Data
 
 Testing, messaging, security, observability, distributed systems and cloud infrastructure will be introduced in later versions when they solve a concrete project need.
+
+## PostgreSQL Development Environment
+
+PostgreSQL runs locally in Docker Compose.
+
+The development setup exposes the database through:
+
+```text
+Application
+    ↓
+DataSource
+    ↓
+HikariCP
+    ↓
+JDBC
+    ↓
+PostgreSQL JDBC Driver
+    ↓
+localhost:5433
+    ↓
+Docker
+    ↓
+PostgreSQL:5432
+```
+
+Environment-specific values are stored outside version control.
+
+Create the local environment file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+The Compose configuration uses the local `.env` file for PostgreSQL initialization and host port mapping.
+
+## Spring Profiles and Database Configuration
+
+Common application configuration lives in:
+
+```text
+src/main/resources/application.yml
+```
+
+Local database configuration lives in:
+
+```text
+src/main/resources/application-local.yml
+```
+
+The local profile configures the Spring `DataSource` using environment variables:
+
+```text
+POSTGRES_DB
+POSTGRES_USER
+POSTGRES_PASSWORD
+POSTGRES_PORT
+```
+
+The application does not read the project `.env` file directly. When running locally from Bash, export its values into the process environment first:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+Then activate the local Spring profile:
+
+```bash
+export SPRING_PROFILES_ACTIVE=local
+```
+
+Run the application:
+
+```bash
+./mvnw spring-boot:run
+```
+
+## Database Connection Validation
+
+The project includes an explicit PostgreSQL integration test:
+
+```text
+PostgresConnectionIT
+```
+
+The test starts the Spring context with the `local` profile, obtains a real JDBC connection from the configured `DataSource`, executes:
+
+```sql
+SELECT 1
+```
+
+and validates the returned value.
+
+This verifies the complete path:
+
+```text
+Spring Boot
+    ↓
+DataSource
+    ↓
+HikariCP
+    ↓
+PostgreSQL JDBC Driver
+    ↓
+Docker
+    ↓
+PostgreSQL
+```
+
+Run the integration test with PostgreSQL running and the environment variables exported:
+
+```bash
+set -a
+source .env
+set +a
+
+./mvnw -Dtest=PostgresConnectionIT test
+```
+
+## Test Configuration
+
+Standard application-context tests use the `test` profile:
+
+```text
+src/test/resources/application-test.yml
+```
+
+The test profile excludes database auto-configuration so that the regular test suite does not depend on a developer's local PostgreSQL instance.
+
+Run the standard test suite with:
+
+```bash
+./mvnw test
+```
+
+The current separation is intentional:
+
+```text
+Standard tests
+→ profile: test
+→ no external PostgreSQL required
+
+PostgreSQL integration test
+→ profile: local
+→ real PostgreSQL required
+```
+
+A more isolated database-testing strategy such as Testcontainers can be introduced later when persistence behavior becomes part of the test scope.
 
 ## Development Roadmap
 
@@ -172,4 +330,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 10.6 — Java ↔ PostgreSQL Connection.
+**Current next step:** Phase 10.7 — Flyway & Schema Versioning.
