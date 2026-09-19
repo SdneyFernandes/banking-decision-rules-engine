@@ -17,7 +17,7 @@ Progress:
 - [x] Application configuration
 - [x] PostgreSQL development environment
 - [x] Java ↔ PostgreSQL connection
-- [ ] Flyway migrations
+- [x] Flyway migrations and schema versioning
 - [ ] JPA persistence model
 - [ ] Repository layer
 - [ ] First persistence flow
@@ -62,17 +62,36 @@ Future responsibilities include controllers, request/response DTOs, validation a
 
 ### Infrastructure
 
-Contains technical implementations such as PostgreSQL, JDBC, JPA/Hibernate, Spring Data and Flyway.
+Contains technical implementations such as PostgreSQL, JDBC, Flyway, JPA/Hibernate and Spring Data.
 
 ## Domain Direction
 
-The engine is being designed around concepts such as:
+The configuration model currently centers on:
 
 ```text
 RuleDefinition
+    │
+    │ 1:N
+    ▼
 ConditionGroup
+    │
+    │ 1:N
+    ▼
 RuleCondition
-Criteria
+```
+
+A `RuleCondition` represents one concrete comparison, for example:
+
+```text
+amount > 10000
+country != BR
+```
+
+The separate `Criteria` abstraction was intentionally removed from the MVP because it did not yet solve a concrete problem.
+
+Other planned domain concepts include:
+
+```text
 Fact
 Evaluation
 Decision
@@ -104,13 +123,13 @@ Priority + First Match Wins
 - Spring JDBC
 - HikariCP
 - PostgreSQL 15
+- Flyway
 - Docker Compose
 - Maven
 - Git
 
 Planned for the current foundation phase:
 
-- SQL schema versioning with Flyway
 - JPA
 - Hibernate
 - Spring Data
@@ -243,6 +262,61 @@ set +a
 ./mvnw -Dtest=PostgresConnectionIT test
 ```
 
+## Flyway Schema Versioning
+
+Flyway owns the evolution of the database schema.
+
+Current migrations:
+
+```text
+V1__create_rule_definition.sql
+    ↓
+V2__create_condition_group.sql
+    ↓
+V3__create_rule_condition.sql
+```
+
+The resulting configuration schema is:
+
+```text
+rule_definition
+    │
+    │ 1:N
+    ▼
+condition_group
+    │
+    │ 1:N
+    ▼
+rule_condition
+```
+
+Flyway stores applied migration metadata in:
+
+```text
+flyway_schema_history
+```
+
+On startup, Flyway validates existing migrations, checks the current schema version and executes only pending migrations.
+
+The project was validated from an empty PostgreSQL volume, proving that the complete schema can be reconstructed automatically from V1 → V2 → V3.
+
+### Migration rule
+
+Once a versioned migration has been applied in a shared or permanent environment, it should be treated as immutable.
+
+Future schema changes must be introduced through a new migration version:
+
+```text
+V1 applied
+V2 applied
+V3 applied
+
+new schema change
+→ V4
+```
+
+This keeps migration history reproducible across local, development, test and production environments.
+
 ## Test Configuration
 
 Standard application-context tests use the `test` profile:
@@ -330,4 +404,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 10.7 — Flyway & Schema Versioning.
+**Current next step:** Phase 10.8 — Persistence Model: Enums + JPA Entities.
