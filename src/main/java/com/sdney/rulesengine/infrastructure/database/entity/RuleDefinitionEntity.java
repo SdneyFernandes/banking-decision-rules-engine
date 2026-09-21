@@ -1,8 +1,16 @@
 package com.sdney.rulesengine.infrastructure.database.entity;
 
-
 import com.sdney.rulesengine.domain.rule.RuleStatus;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.Generated;
 
 import java.time.OffsetDateTime;
@@ -53,11 +61,13 @@ public class RuleDefinitionEntity {
     )
     private List<ConditionGroupEntity> conditionGroups = new ArrayList<>();
 
-    public RuleDefinitionEntity(String name, RuleStatus status, Integer priority, List<ConditionGroupEntity> conditionGroups) {
+    public RuleDefinitionEntity(String name, RuleStatus status, Integer priority) {
         this.name = name;
         this.status = status;
         this.priority = priority;
-        this.conditionGroups = conditionGroups;
+    }
+
+    protected RuleDefinitionEntity() {
     }
 
     public Long getId() {
@@ -83,6 +93,4 @@ public class RuleDefinitionEntity {
     public List<ConditionGroupEntity> getConditionGroups() {
         return conditionGroups;
     }
-
-    protected RuleDefinitionEntity() {}
 }
