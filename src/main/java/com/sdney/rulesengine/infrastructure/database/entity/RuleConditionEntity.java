@@ -1,9 +1,18 @@
 package com.sdney.rulesengine.infrastructure.database.entity;
 
-
 import com.sdney.rulesengine.domain.rule.ComparisonOperator;
 import com.sdney.rulesengine.domain.rule.ValueType;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "rule_condition")
@@ -14,7 +23,8 @@ public class RuleConditionEntity {
     private Long id;
 
     @ManyToOne(
-            fetch = FetchType.LAZY
+            fetch = FetchType.LAZY,
+            optional = false
     )
     @JoinColumn(
             name = "condition_group_id",
@@ -52,7 +62,13 @@ public class RuleConditionEntity {
     )
     private String expectedValue;
 
-    public RuleConditionEntity(ConditionGroupEntity conditionGroup, String factKey, ComparisonOperator operator, ValueType valueType, String expectedValue) {
+    public RuleConditionEntity(
+            ConditionGroupEntity conditionGroup,
+            String factKey,
+            ComparisonOperator operator,
+            ValueType valueType,
+            String expectedValue
+    ) {
         this.conditionGroup = conditionGroup;
         this.factKey = factKey;
         this.operator = operator;
@@ -60,7 +76,7 @@ public class RuleConditionEntity {
         this.expectedValue = expectedValue;
     }
 
-    protected  RuleConditionEntity() {
+    protected RuleConditionEntity() {
     }
 
     public Long getId() {
