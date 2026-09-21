@@ -8,25 +8,29 @@ This repository is a long-term software engineering project. The goal is to evol
 
 **Phase 10 — Foundation & Persistence**
 
-Progress:
+~~~text
+[✅] 10.1  Bootstrap
+[✅] 10.2  Project anatomy
+[✅] 10.3  Architecture and packages
+[✅] 10.4  Application configuration
+[✅] 10.5  PostgreSQL with Docker
+[✅] 10.6  Java ↔ PostgreSQL connection
+[✅] 10.7  Flyway and schema versioning
+[✅] 10.8  JPA Entities + Enums
+[▶️] 10.9  JPA relationship behavior and mapping validation
+[ ] 10.10 Repositories / persistence ports
+[ ] 10.11 First persistence flow
+[ ] 10.12 Minimum persistence test
+[ ] 10.13 Phase review and documentation
+~~~
 
-- [x] Java 21 project bootstrap
-- [x] Spring Boot application
-- [x] Maven build and executable JAR
-- [x] Initial architectural boundaries
-- [x] Application configuration
-- [x] PostgreSQL development environment
-- [x] Java ↔ PostgreSQL connection
-- [x] Flyway migrations and schema versioning
-- [ ] JPA persistence model
-- [ ] Repository layer
-- [ ] First persistence flow
+The current implementation already contains the structural JPA relationships introduced during 10.8. Phase 10.9 will focus on proving how those mappings behave at runtime: owning side, inverse side, bidirectional synchronization, lazy loading, persistence context and generated SQL.
 
 ## Architecture
 
 The project starts with four explicit boundaries:
 
-```text
+~~~text
 API
  ↓
 Application
@@ -36,11 +40,20 @@ Domain
 Infrastructure
  ↓
 Application / Domain
-```
+~~~
 
 ### Domain
 
 Contains business concepts and business rules. The domain should remain as independent as possible from HTTP, Spring MVC, persistence frameworks and infrastructure details.
+
+Current domain enums used by the persistence model:
+
+~~~text
+RuleStatus
+LogicalOperator
+ComparisonOperator
+ValueType
+~~~
 
 ### Application
 
@@ -64,11 +77,13 @@ Future responsibilities include controllers, request/response DTOs, validation a
 
 Contains technical implementations such as PostgreSQL, JDBC, Flyway, JPA/Hibernate and Spring Data.
 
+JPA entities live under the infrastructure boundary instead of the domain so that business concepts do not depend on persistence annotations.
+
 ## Domain Direction
 
-The configuration model currently centers on:
+The current rule configuration model is:
 
-```text
+~~~text
 RuleDefinition
     │
     │ 1:N
@@ -78,28 +93,42 @@ ConditionGroup
     │ 1:N
     ▼
 RuleCondition
-```
+~~~
 
-A `RuleCondition` represents one concrete comparison, for example:
+A RuleCondition represents one concrete comparison:
 
-```text
-amount > 10000
-country != BR
-```
+~~~text
+factKey + operator + expectedValue
 
-The separate `Criteria` abstraction was intentionally removed from the MVP because it did not yet solve a concrete problem.
+amount + GREATER_THAN + 10000
+country + NOT_EQUALS + BR
+~~~
 
-Other planned domain concepts include:
+ValueType tells the engine how the values must be interpreted:
 
-```text
+~~~text
+STRING
+INTEGER
+DECIMAL
+BOOLEAN
+DATE
+~~~
+
+The separate Criteria abstraction was intentionally removed from the MVP because it did not yet solve a concrete problem. If reusable criteria or a centralized fact catalog becomes necessary later, the model can evolve through a new migration and domain change.
+
+Other planned concepts include:
+
+~~~text
 Fact
 Evaluation
 Decision
-```
+~~~
+
+Evaluation persistence is intentionally deferred until the evaluation flow is introduced in Phase 13 rather than creating unused tables and entities during the foundation phase.
 
 Initial rule lifecycle:
 
-```text
+~~~text
 DRAFT
   ↓
 APPROVED
@@ -107,13 +136,15 @@ APPROVED
 PUBLISHED
   ↓
 RETIRED
-```
+~~~
 
 Initial evaluation strategy:
 
-```text
+~~~text
 Priority + First Match Wins
-```
+~~~
+
+Priority currently represents evaluation order, not a score that is summed across rules.
 
 ## Current Stack
 
@@ -121,6 +152,8 @@ Priority + First Match Wins
 - Spring Boot 4.1.1
 - Spring MVC
 - Spring JDBC
+- Spring Data JPA
+- Hibernate ORM
 - HikariCP
 - PostgreSQL 15
 - Flyway
@@ -128,21 +161,15 @@ Priority + First Match Wins
 - Maven
 - Git
 
-Planned for the current foundation phase:
-
-- JPA
-- Hibernate
-- Spring Data
-
-Testing, messaging, security, observability, distributed systems and cloud infrastructure will be introduced in later versions when they solve a concrete project need.
+Testing, messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
 
 ## PostgreSQL Development Environment
 
 PostgreSQL runs locally in Docker Compose.
 
-The development setup exposes the database through:
+The current connection path is:
 
-```text
+~~~text
 Application
     ↓
 DataSource
@@ -158,87 +185,309 @@ localhost:5433
 Docker
     ↓
 PostgreSQL:5432
-```
+~~~
 
 Environment-specific values are stored outside version control.
 
 Create the local environment file from the example:
 
-```bash
+~~~bash
 cp .env.example .env
-```
+~~~
 
 Start PostgreSQL:
 
-```bash
+~~~bash
 docker compose up -d
 docker compose ps
-```
+~~~
 
-The Compose configuration uses the local `.env` file for PostgreSQL initialization and host port mapping.
+The Compose configuration uses the local .env file for PostgreSQL initialization and host port mapping.
 
 ## Spring Profiles and Database Configuration
 
 Common application configuration lives in:
 
-```text
+~~~text
 src/main/resources/application.yml
-```
+~~~
 
 Local database configuration lives in:
 
-```text
+~~~text
 src/main/resources/application-local.yml
-```
+~~~
 
-The local profile configures the Spring `DataSource` using environment variables:
+The local profile configures the Spring DataSource using environment variables:
 
-```text
+~~~text
 POSTGRES_DB
 POSTGRES_USER
 POSTGRES_PASSWORD
 POSTGRES_PORT
-```
+~~~
 
-The application does not read the project `.env` file directly. When running locally from Bash, export its values into the process environment first:
+The application does not read the project .env file directly. Export its values into the shell process before running locally:
 
-```bash
+~~~bash
 set -a
 source .env
 set +a
-```
+~~~
 
-Then activate the local Spring profile:
+Activate the local Spring profile:
 
-```bash
+~~~bash
 export SPRING_PROFILES_ACTIVE=local
-```
+~~~
 
 Run the application:
 
-```bash
+~~~bash
 ./mvnw spring-boot:run
-```
+~~~
+
+## Flyway Schema Versioning
+
+Flyway owns database schema evolution.
+
+Current migrations:
+
+~~~text
+V1__create_rule_definition.sql
+    ↓
+V2__create_condition_group.sql
+    ↓
+V3__create_rule_condition.sql
+~~~
+
+The resulting configuration schema is:
+
+~~~text
+rule_definition
+    │
+    │ 1:N
+    ▼
+condition_group
+    │
+    │ 1:N
+    ▼
+rule_condition
+~~~
+
+Flyway stores applied migration metadata in:
+
+~~~text
+flyway_schema_history
+~~~
+
+On startup, Flyway validates existing migrations, checks the current schema version and executes only pending migrations.
+
+The project was validated from an empty PostgreSQL volume, proving that the complete configuration schema can be reconstructed automatically from V1 → V2 → V3.
+
+### Migration rule
+
+Once a versioned migration has been applied in a shared or permanent environment, it is treated as immutable.
+
+Future schema changes must be introduced through a new version:
+
+~~~text
+V1 applied
+V2 applied
+V3 applied
+
+new schema change
+→ V4
+~~~
+
+This keeps schema evolution reproducible across environments.
+
+## JPA Persistence Model
+
+The persistence model maps the Flyway-managed schema into Java.
+
+~~~text
+PostgreSQL                     JPA / Hibernate
+
+rule_definition          ↔     RuleDefinitionEntity
+condition_group          ↔     ConditionGroupEntity
+rule_condition           ↔     RuleConditionEntity
+~~~
+
+### RuleDefinitionEntity
+
+Maps:
+
+~~~text
+id          ↔ Long
+name        ↔ String
+status      ↔ RuleStatus
+priority    ↔ Integer
+created_at  ↔ OffsetDateTime
+~~~
+
+The PostgreSQL identity column generates id.
+
+created_at is also database-owned through:
+
+~~~sql
+DEFAULT CURRENT_TIMESTAMP
+~~~
+
+The JPA mapping marks it as generated and excludes it from application INSERT/UPDATE statements.
+
+### ConditionGroupEntity
+
+Represents a group of conditions joined by:
+
+~~~text
+AND
+OR
+~~~
+
+It owns the foreign key:
+
+~~~text
+condition_group.rule_definition_id
+~~~
+
+and maps the child-to-parent direction with @ManyToOne.
+
+### RuleConditionEntity
+
+Represents one executable comparison configuration:
+
+~~~text
+factKey
+operator
+valueType
+expectedValue
+~~~
+
+Example:
+
+~~~text
+factKey       = amount
+operator      = GREATER_THAN
+valueType     = DECIMAL
+expectedValue = 10000
+
+→ amount > 10000
+~~~
+
+The factKey identifies which runtime fact must be read. The expectedValue represents the configured comparison target. ValueType tells the future engine how to interpret the values before applying the operator.
+
+### Enum persistence
+
+Enums are persisted with @Enumerated(EnumType.STRING).
+
+This keeps Java enum names aligned with the VARCHAR + CHECK constraints defined by Flyway.
+
+The following contract must therefore remain consistent:
+
+~~~text
+Java enum constant
+        ↕
+persisted String
+        ↕
+PostgreSQL CHECK constraint
+~~~
+
+For example, GREATER_THAN_OR_EQUALS must have the exact same representation in Java and in the database constraint.
+
+## Flyway and Hibernate Responsibilities
+
+Flyway and Hibernate are intentionally used for different jobs:
+
+~~~text
+Flyway
+→ creates and evolves the physical schema
+
+Hibernate
+→ maps Java objects to that schema
+→ validates compatibility
+→ later performs persistence operations
+~~~
+
+The local profile uses:
+
+~~~yaml
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+~~~
+
+Hibernate therefore validates the schema but does not create or update it.
+
+The startup sequence is conceptually:
+
+~~~text
+Application starts
+      ↓
+Flyway validates/applies migrations
+      ↓
+PostgreSQL schema is ready
+      ↓
+Hibernate reads entity mappings
+      ↓
+Hibernate validates mappings against schema
+      ↓
+Application starts
+~~~
+
+A deliberate experiment with an invalid column mapping confirmed that Hibernate fails startup when an entity expects a column that does not exist.
+
+Schema validation does not validate every business-level database constraint. For example, a VARCHAR column may structurally validate even if a Java enum constant does not match a PostgreSQL CHECK value. Persistence tests are therefore still necessary.
+
+## JPA Relationships
+
+The current mappings are bidirectional:
+
+~~~text
+RuleDefinitionEntity
+    ↓ @OneToMany(mappedBy = "ruleDefinition")
+
+ConditionGroupEntity
+    ↑ @ManyToOne + @JoinColumn
+    ↓ @OneToMany(mappedBy = "conditionGroup")
+
+RuleConditionEntity
+    ↑ @ManyToOne + @JoinColumn
+~~~
+
+The database still contains only two physical foreign keys:
+
+~~~text
+condition_group.rule_definition_id
+rule_condition.condition_group_id
+~~~
+
+The side containing @JoinColumn is the owning side because it controls the foreign key.
+
+mappedBy points to the Java attribute on the owning side, not to the SQL column name.
+
+Associations use lazy loading explicitly and no cascade behavior has been introduced yet. Cascade rules will only be added when persistence behavior makes the required lifecycle clear.
 
 ## Database Connection Validation
 
 The project includes an explicit PostgreSQL integration test:
 
-```text
+~~~text
 PostgresConnectionIT
-```
+~~~
 
-The test starts the Spring context with the `local` profile, obtains a real JDBC connection from the configured `DataSource`, executes:
+The test starts the Spring context with the local profile, obtains a real JDBC connection from the configured DataSource, executes:
 
-```sql
+~~~sql
 SELECT 1
-```
+~~~
 
-and validates the returned value.
+and validates the result.
 
-This verifies the complete path:
+This verifies:
 
-```text
+~~~text
 Spring Boot
     ↓
 DataSource
@@ -250,106 +499,165 @@ PostgreSQL JDBC Driver
 Docker
     ↓
 PostgreSQL
-```
+~~~
 
-Run the integration test with PostgreSQL running and the environment variables exported:
+Run the integration test with PostgreSQL running and environment variables exported:
 
-```bash
+~~~bash
 set -a
 source .env
 set +a
 
 ./mvnw -Dtest=PostgresConnectionIT test
-```
-
-## Flyway Schema Versioning
-
-Flyway owns the evolution of the database schema.
-
-Current migrations:
-
-```text
-V1__create_rule_definition.sql
-    ↓
-V2__create_condition_group.sql
-    ↓
-V3__create_rule_condition.sql
-```
-
-The resulting configuration schema is:
-
-```text
-rule_definition
-    │
-    │ 1:N
-    ▼
-condition_group
-    │
-    │ 1:N
-    ▼
-rule_condition
-```
-
-Flyway stores applied migration metadata in:
-
-```text
-flyway_schema_history
-```
-
-On startup, Flyway validates existing migrations, checks the current schema version and executes only pending migrations.
-
-The project was validated from an empty PostgreSQL volume, proving that the complete schema can be reconstructed automatically from V1 → V2 → V3.
-
-### Migration rule
-
-Once a versioned migration has been applied in a shared or permanent environment, it should be treated as immutable.
-
-Future schema changes must be introduced through a new migration version:
-
-```text
-V1 applied
-V2 applied
-V3 applied
-
-new schema change
-→ V4
-```
-
-This keeps migration history reproducible across local, development, test and production environments.
+~~~
 
 ## Test Configuration
 
-Standard application-context tests use the `test` profile:
+Standard application-context tests use the test profile:
 
-```text
+~~~text
 src/test/resources/application-test.yml
-```
+~~~
 
-The test profile excludes database auto-configuration so that the regular test suite does not depend on a developer's local PostgreSQL instance.
+The test profile excludes database auto-configuration so the regular test suite does not depend on a developer's PostgreSQL instance.
 
 Run the standard test suite with:
 
-```bash
+~~~bash
 ./mvnw test
-```
+~~~
 
-The current separation is intentional:
+The JPA persistence model was also validated through the full Maven build:
 
-```text
+~~~bash
+./mvnw clean install
+~~~
+
+Current separation:
+
+~~~text
 Standard tests
 → profile: test
 → no external PostgreSQL required
 
-PostgreSQL integration test
+PostgreSQL integration / local startup
 → profile: local
-→ real PostgreSQL required
-```
+→ Flyway + Hibernate validate against real PostgreSQL
+~~~
 
-A more isolated database-testing strategy such as Testcontainers can be introduced later when persistence behavior becomes part of the test scope.
+A more isolated database-testing strategy such as Testcontainers is planned when persistence testing expands.
+
+## Phase 10 — Foundation & Persistence
+
+The purpose of Phase 10 is to prepare the application foundation and persistence layer. Business behavior such as creating, approving and publishing rules belongs to Phase 11.
+
+### 10.1 — Bootstrap ✅
+
+Java 21, Spring Boot, Maven Wrapper, executable build, initial test and application startup.
+
+### 10.2 — Project Anatomy ✅
+
+Project structure, pom.xml, application entry point, resources, tests, build output and Spring Boot startup model.
+
+### 10.3 — Architecture and Packages ✅
+
+Initial boundaries:
+
+~~~text
+api
+application
+domain
+infrastructure
+~~~
+
+### 10.4 — Application Configuration ✅
+
+YAML configuration, profiles, environment variables and externalized local configuration.
+
+### 10.5 — PostgreSQL with Docker ✅
+
+Docker Compose, PostgreSQL container, database/user configuration, host/container ports and persistent volume.
+
+### 10.6 — Java ↔ PostgreSQL Connection ✅
+
+Spring JDBC, PostgreSQL JDBC driver, DataSource, HikariCP and a real physical connection test.
+
+### 10.7 — Flyway and Schema Versioning ✅
+
+Flyway integration, migration history, checksums, incremental migrations, foreign keys, CHECK constraints and reconstruction from an empty database.
+
+### 10.8 — JPA Entities + Enums ✅
+
+Spring Data JPA / Hibernate integration, enums, entity-to-table mapping, identity generation, database-generated timestamps, enum persistence, initial @ManyToOne / @OneToMany mappings and Hibernate schema validation.
+
+### 10.9 — JPA Relationship Behavior and Mapping Validation ▶️
+
+The structural relationship annotations already exist. This step will prove their runtime behavior:
+
+~~~text
+owning side vs inverse side
+bidirectional synchronization
+LAZY loading
+Persistence Context
+generated SQL
+relationship updates
+~~~
+
+No new relationship abstraction will be added merely to satisfy the roadmap.
+
+### 10.10 — Repositories / Persistence Ports
+
+Distinguish application/domain persistence contracts from Spring Data infrastructure where that separation solves a real problem.
+
+Conceptually:
+
+~~~text
+Application
+↓
+RuleRepository port
+
+Infrastructure
+↓
+JPA adapter
+↓
+Spring Data repository
+↓
+Hibernate
+~~~
+
+### 10.11 — First Persistence Flow
+
+First concrete ORM flow:
+
+~~~text
+create object
+↓
+persist
+↓
+transaction / flush
+↓
+PostgreSQL
+↓
+load again
+↓
+verify state
+~~~
+
+This is where @Transactional, persistence context, dirty checking, flush and generated SQL become observable.
+
+### 10.12 — Minimum Persistence Test
+
+Add only enough integration coverage to prove migrations, mappings, repositories and PostgreSQL constraints.
+
+Broader repository and integration testing remains part of Phase 15.
+
+### 10.13 — Phase Review and Documentation
+
+Run the project from a clean environment, review packages, migrations, entities and SQL, remove poor decisions, and update diagrams/documentation before moving to Rule Configuration.
 
 ## Development Roadmap
 
-```text
+~~~text
 10 — Foundation & Persistence
  ↓
 11 — Rule Configuration
@@ -371,7 +679,28 @@ A more isolated database-testing strategy such as Testcontainers can be introduc
 19 — Security & Robustness
  ↓
 20 — Delivery & Portfolio
-```
+~~~
+
+The practical progression is:
+
+~~~text
+Block 1 — Make it exist
+10 Foundation/Persistence
+→ 11 Rule Configuration
+→ 12 Engine Core
+→ 13 Evaluation Flow
+
+Block 2 — Make it reliable
+14 API
+→ 15 Tests
+→ 16 Audit
+
+Block 3 — Make it production-oriented
+17 Performance
+→ 18 Observability
+→ 19 Security
+→ 20 Delivery
+~~~
 
 ## Engineering Approach
 
@@ -382,26 +711,29 @@ A more isolated database-testing strategy such as Testcontainers can be introduc
 - Test each increment before moving forward.
 - Update architecture and documentation when implementation reveals a better design.
 - Add technologies because the system needs them, not to decorate the stack.
+- Prefer explicit schema migrations over implicit ORM schema changes.
+- Delay abstractions until a concrete requirement justifies them.
 
 ## Repository Workflow
 
 Development follows small changes with clear Git history:
 
-```text
+~~~text
 understand → implement → inspect diff → test → commit → review → next increment
-```
+~~~
 
 Commit messages follow a simple Conventional Commits style, for example:
 
-```text
+~~~text
 chore: configure application settings
 feat: add initial database migration
-fix: correct rule persistence mapping
+feat: add JPA persistence model
+fix: align enum persistence with database constraint
 refactor: reorganize persistence adapter
 docs: update architecture documentation
 test: add repository integration coverage
-```
+~~~
 
 ---
 
-**Current next step:** Phase 10.8 — Persistence Model: Enums + JPA Entities.
+**Current next step:** Phase 10.9 — JPA Relationship Behavior & Mapping Validation.
