@@ -1,13 +1,21 @@
 package com.sdney.rulesengine.infrastructure.database.entity;
 
-
 import com.sdney.rulesengine.domain.rule.LogicalOperator;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static jakarta.persistence.FetchType.LAZY;
 
 @Entity
 @Table(name = "condition_group")
@@ -17,7 +25,10 @@ public class ConditionGroupEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(
+            fetch = FetchType.LAZY,
+            optional = false
+    )
     @JoinColumn(
             name = "rule_definition_id",
             nullable = false
@@ -38,13 +49,16 @@ public class ConditionGroupEntity {
     )
     private List<RuleConditionEntity> conditions = new ArrayList<>();
 
-    public ConditionGroupEntity(RuleDefinitionEntity ruleDefinition, LogicalOperator logicalOperator, List<RuleConditionEntity> conditions) {
+    public ConditionGroupEntity(
+            RuleDefinitionEntity ruleDefinition,
+            LogicalOperator logicalOperator
+    ) {
         this.ruleDefinition = ruleDefinition;
         this.logicalOperator = logicalOperator;
-        this.conditions = conditions;
     }
 
-    protected ConditionGroupEntity() {}
+    protected ConditionGroupEntity() {
+    }
 
     public Long getId() {
         return id;
