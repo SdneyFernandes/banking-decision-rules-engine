@@ -6,7 +6,7 @@ This repository is a long-term software engineering project. The goal is to evol
 
 ## Current Status
 
-**Phase 10 — Foundation & Persistence**
+**Phase 10 — Foundation & Persistence ✅**
 
 ~~~text
 [✅] 10.1  Bootstrap
@@ -17,14 +17,14 @@ This repository is a long-term software engineering project. The goal is to evol
 [✅] 10.6  Java ↔ PostgreSQL connection
 [✅] 10.7  Flyway and schema versioning
 [✅] 10.8  JPA Entities + Enums
-[▶️] 10.9  JPA relationship behavior and mapping validation
-[ ] 10.10 Repositories / persistence ports
-[ ] 10.11 First persistence flow
-[ ] 10.12 Minimum persistence test
-[ ] 10.13 Phase review and documentation
+[✅] 10.9  JPA relationship behavior and mapping validation
+[✅] 10.10 Spring Data JPA repositories
+[✅] 10.11 First persistence flow
+[✅] 10.12 Persistence validation
+[✅] 10.13 Phase review and documentation
 ~~~
 
-The current implementation already contains the structural JPA relationships introduced during 10.8. Phase 10.9 will focus on proving how those mappings behave at runtime: owning side, inverse side, bidirectional synchronization, lazy loading, persistence context and generated SQL.
+Phase 10 is complete. The persistence flow was exercised locally with exploratory integration tests while learning EntityManager, repositories, relationships, flush, clear and dirty checking. Those temporary exploratory tests were intentionally not retained in the repository. Durable, broader persistence coverage remains part of Phase 15 — Tests & Quality.
 
 ## Architecture
 
@@ -590,70 +590,65 @@ Flyway integration, migration history, checksums, incremental migrations, foreig
 
 Spring Data JPA / Hibernate integration, enums, entity-to-table mapping, identity generation, database-generated timestamps, enum persistence, initial @ManyToOne / @OneToMany mappings and Hibernate schema validation.
 
-### 10.9 — JPA Relationship Behavior and Mapping Validation ▶️
+### 10.9 — JPA Relationship Behavior and Mapping Validation ✅
 
-The structural relationship annotations already exist. This step will prove their runtime behavior:
+The structural mappings were exercised to understand owning side vs inverse side, bidirectional navigation, persistence context, flush, clear and lazy associations.
 
 ~~~text
-owning side vs inverse side
-bidirectional synchronization
-LAZY loading
-Persistence Context
-generated SQL
-relationship updates
+@ManyToOne + @JoinColumn
+→ owning side / controls the foreign key
+
+@OneToMany(mappedBy = ...)
+→ inverse side / mirrors the same relationship
 ~~~
 
-No new relationship abstraction will be added merely to satisfy the roadmap.
+### 10.10 — Spring Data JPA Repositories ✅
 
-### 10.10 — Repositories / Persistence Ports
-
-Distinguish application/domain persistence contracts from Spring Data infrastructure where that separation solves a real problem.
-
-Conceptually:
+The infrastructure now contains one technical Spring Data repository per persisted entity:
 
 ~~~text
-Application
-↓
-RuleRepository port
+RuleDefinitionJpaRepository
+ConditionGroupJpaRepository
+RuleConditionJpaRepository
+~~~
 
-Infrastructure
+Each repository extends JpaRepository<Entity, Long> and is implemented at runtime by Spring Data JPA.
+
+A domain/application persistence port was deliberately not introduced yet. Phase 11 will create real business use cases first, which will reveal the persistence contract the application actually needs.
+
+### 10.11 — First Persistence Flow ✅
+
+The complete structure was exercised locally:
+
+~~~text
+RuleDefinitionEntity
 ↓
-JPA adapter
+ConditionGroupEntity
 ↓
-Spring Data repository
+RuleConditionEntity
+↓
+Spring Data repositories
+↓
+EntityManager / Persistence Context
 ↓
 Hibernate
-~~~
-
-### 10.11 — First Persistence Flow
-
-First concrete ORM flow:
-
-~~~text
-create object
-↓
-persist
-↓
-transaction / flush
 ↓
 PostgreSQL
-↓
-load again
-↓
-verify state
 ~~~
 
-This is where @Transactional, persistence context, dirty checking, flush and generated SQL become observable.
+This work covered save/findById, transaction boundaries, flush, clear, managed vs detached state and dirty checking.
 
-### 10.12 — Minimum Persistence Test
+### 10.12 — Persistence Validation ✅
 
-Add only enough integration coverage to prove migrations, mappings, repositories and PostgreSQL constraints.
+The persistence flow and relationships were validated locally against the real PostgreSQL development database.
 
-Broader repository and integration testing remains part of Phase 15.
+The temporary exploratory JPA flow tests used during this learning step were removed afterward and are not part of the permanent test suite. The existing PostgreSQL connection validation remains in the repository, while durable repository/integration coverage is planned for Phase 15.
 
-### 10.13 — Phase Review and Documentation
+### 10.13 — Phase Review and Documentation ✅
 
-Run the project from a clean environment, review packages, migrations, entities and SQL, remove poor decisions, and update diagrams/documentation before moving to Rule Configuration.
+The database was rebuilt from an empty Docker volume, Flyway reapplied V1 → V2 → V3, Hibernate validated the mappings, the persistence flow was exercised, and the Maven build completed successfully.
+
+Phase 10 is therefore closed with a reproducible persistence foundation.
 
 ## Development Roadmap
 
@@ -736,4 +731,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 10.9 — JPA Relationship Behavior & Mapping Validation.
+**Current next step:** Phase 11 — Rule Configuration.
