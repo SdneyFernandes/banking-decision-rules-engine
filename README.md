@@ -6,25 +6,23 @@ This repository is a long-term software engineering project. The goal is to evol
 
 ## Current Status
 
-**Phase 10 — Foundation & Persistence ✅**
+**Phase 11 — Rule Configuration ✅**
 
 ~~~text
-[✅] 10.1  Bootstrap
-[✅] 10.2  Project anatomy
-[✅] 10.3  Architecture and packages
-[✅] 10.4  Application configuration
-[✅] 10.5  PostgreSQL with Docker
-[✅] 10.6  Java ↔ PostgreSQL connection
-[✅] 10.7  Flyway and schema versioning
-[✅] 10.8  JPA Entities + Enums
-[✅] 10.9  JPA relationship behavior and mapping validation
-[✅] 10.10 Spring Data JPA repositories
-[✅] 10.11 First persistence flow
-[✅] 10.12 Persistence validation
-[✅] 10.13 Phase review and documentation
+[✅] Domain model: RuleDefinition, ConditionGroup, RuleCondition
+[✅] Lifecycle: DRAFT → APPROVED → PUBLISHED → RETIRED
+[✅] Configuration validation
+[✅] RuleRepository application port
+[✅] JpaRuleRepositoryAdapter
+[✅] Create / Approve / Publish use cases
+[✅] Rule versioning with ruleKey + version
+[✅] Domain unit tests
+[✅] Application unit tests with Mockito
 ~~~
 
-Phase 10 is complete. The persistence flow was exercised locally with exploratory integration tests while learning EntityManager, repositories, relationships, flush, clear and dirty checking. Those temporary exploratory tests were intentionally not retained in the repository. Durable, broader persistence coverage remains part of Phase 15 — Tests & Quality.
+Phase 11 is complete. Rules can now be created, configured, approved, published and versioned. When a newer version is published, the previously published version in the same rule family is retired.
+
+Durable JPA/PostgreSQL integration coverage remains intentionally deferred to Phase 15 — Tests & Quality.
 
 ## Architecture
 
@@ -59,11 +57,16 @@ ValueType
 
 Orchestrates use cases and coordinates the domain with required ports.
 
-Planned use cases include:
+Implemented rule-configuration use cases:
 
 - Create Rule
 - Approve Rule
 - Publish Rule
+- Add Condition Group
+- Create New Version
+
+Future evaluation use cases include:
+
 - Evaluate Decision
 - Get Evaluation
 
@@ -161,7 +164,7 @@ Priority currently represents evaluation order, not a score that is summed acros
 - Maven
 - Git
 
-Testing, messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
+JUnit 5 and Mockito are now used for domain and application unit tests. Messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
 
 ## PostgreSQL Development Environment
 
@@ -259,6 +262,8 @@ V1__create_rule_definition.sql
 V2__create_condition_group.sql
     ↓
 V3__create_rule_condition.sql
+    ↓
+V4__add_rule_version_and_key.sql
 ~~~
 
 The resulting configuration schema is:
@@ -323,6 +328,8 @@ id          ↔ Long
 name        ↔ String
 status      ↔ RuleStatus
 priority    ↔ Integer
+version     ↔ Integer
+rule_key    ↔ UUID
 created_at  ↔ OffsetDateTime
 ~~~
 
@@ -469,47 +476,11 @@ mappedBy points to the Java attribute on the owning side, not to the SQL column 
 
 Associations use lazy loading explicitly and no cascade behavior has been introduced yet. Cascade rules will only be added when persistence behavior makes the required lifecycle clear.
 
-## Database Connection Validation
+## Database Integration Testing
 
-The project includes an explicit PostgreSQL integration test:
+Exploratory PostgreSQL/JPA tests used while learning the persistence flow are not retained as permanent coverage.
 
-~~~text
-PostgresConnectionIT
-~~~
-
-The test starts the Spring context with the local profile, obtains a real JDBC connection from the configured DataSource, executes:
-
-~~~sql
-SELECT 1
-~~~
-
-and validates the result.
-
-This verifies:
-
-~~~text
-Spring Boot
-    ↓
-DataSource
-    ↓
-HikariCP
-    ↓
-PostgreSQL JDBC Driver
-    ↓
-Docker
-    ↓
-PostgreSQL
-~~~
-
-Run the integration test with PostgreSQL running and environment variables exported:
-
-~~~bash
-set -a
-source .env
-set +a
-
-./mvnw -Dtest=PostgresConnectionIT test
-~~~
+The permanent integration-test strategy is deferred to Phase 15, where the persistence adapter will be tested with Spring, Flyway, PostgreSQL and Testcontainers.
 
 ## Test Configuration
 
@@ -731,4 +702,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 11 — Rule Configuration.
+**Current next step:** Phase 12 — Rule Engine Core.
