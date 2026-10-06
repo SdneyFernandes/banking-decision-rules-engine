@@ -6,25 +6,30 @@ This repository is a long-term software engineering project. The goal is to evol
 
 ## Current Status
 
-**Phase 10 — Foundation & Persistence ✅**
+**Phase 11 — Rule Configuration ✅**
 
 ~~~text
-[✅] 10.1  Bootstrap
-[✅] 10.2  Project anatomy
-[✅] 10.3  Architecture and packages
-[✅] 10.4  Application configuration
-[✅] 10.5  PostgreSQL with Docker
-[✅] 10.6  Java ↔ PostgreSQL connection
-[✅] 10.7  Flyway and schema versioning
-[✅] 10.8  JPA Entities + Enums
-[✅] 10.9  JPA relationship behavior and mapping validation
-[✅] 10.10 Spring Data JPA repositories
-[✅] 10.11 First persistence flow
-[✅] 10.12 Persistence validation
-[✅] 10.13 Phase review and documentation
+[✅] 11.1  Domain rules and invariants
+[✅] 11.2  RuleDefinition domain model
+[✅] 11.3  ConditionGroup domain model
+[✅] 11.4  RuleCondition domain model
+[✅] 11.5  Aggregate root composition
+[✅] 11.6  DRAFT → APPROVED → PUBLISHED → RETIRED lifecycle
+[✅] 11.7  Configuration validation
+[✅] 11.8  RuleRepository application port
+[✅] 11.9  Domain ↔ JPA mapping
+[✅] 11.10 JPA persistence adapter
+[✅] 11.11 Create Rule
+[✅] 11.12 Approve Rule
+[✅] 11.13 Publish Rule
+[✅] 11.14 Rule versioning
+[✅] 11.15 Domain and application unit tests
+[✅] 11.16 Phase review and documentation
 ~~~
 
-Phase 10 is complete. The persistence flow was exercised locally with exploratory integration tests while learning EntityManager, repositories, relationships, flush, clear and dirty checking. Those temporary exploratory tests were intentionally not retained in the repository. Durable, broader persistence coverage remains part of Phase 15 — Tests & Quality.
+Phase 11 is complete. The system can now create, configure, approve, publish, retire and version rules while keeping domain behavior separate from persistence orchestration.
+
+Durable JPA/PostgreSQL integration coverage is intentionally deferred to Phase 15 — Tests & Quality, where the persistence adapter will be exercised with Spring, Flyway and Testcontainers.
 
 ## Architecture
 
@@ -59,11 +64,16 @@ ValueType
 
 Orchestrates use cases and coordinates the domain with required ports.
 
-Planned use cases include:
+Implemented rule-configuration use cases:
 
 - Create Rule
 - Approve Rule
 - Publish Rule
+- Add Condition Group
+- Create New Version
+
+Future evaluation use cases include:
+
 - Evaluate Decision
 - Get Evaluation
 
@@ -160,8 +170,10 @@ Priority currently represents evaluation order, not a score that is summed acros
 - Docker Compose
 - Maven
 - Git
+- JUnit 5
+- Mockito
 
-Testing, messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
+Unit testing is now part of the project through JUnit 5 and Mockito. Messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
 
 ## PostgreSQL Development Environment
 
@@ -259,6 +271,8 @@ V1__create_rule_definition.sql
 V2__create_condition_group.sql
     ↓
 V3__create_rule_condition.sql
+    ↓
+V4__add_rule_versioning.sql
 ~~~
 
 The resulting configuration schema is:
@@ -323,6 +337,8 @@ id          ↔ Long
 name        ↔ String
 status      ↔ RuleStatus
 priority    ↔ Integer
+version     ↔ Integer
+rule_key    ↔ UUID
 created_at  ↔ OffsetDateTime
 ~~~
 
@@ -650,6 +666,91 @@ The database was rebuilt from an empty Docker volume, Flyway reapplied V1 → V2
 
 Phase 10 is therefore closed with a reproducible persistence foundation.
 
+## Phase 11 — Rule Configuration
+
+Phase 11 introduces the first real business behavior of the rules engine.
+
+The domain model is now:
+
+~~~text
+RuleDefinition
+    │
+    ├── lifecycle
+    │   DRAFT → APPROVED → PUBLISHED → RETIRED
+    │
+    ├── version + ruleKey
+    │
+    └── ConditionGroup
+            │
+            └── RuleCondition
+~~~
+
+A new Rule starts with:
+
+~~~text
+id       = null
+status   = DRAFT
+version  = 1
+ruleKey  = generated UUID
+~~~
+
+Configuration can only change while the Rule is DRAFT. Approval requires at least one ConditionGroup and every group must contain at least one RuleCondition.
+
+Versioning creates a new DRAFT Rule instead of mutating the published version:
+
+~~~text
+v1 PUBLISHED
+     ↓ createNewVersion()
+v2 DRAFT
+
+same ruleKey
+different id after persistence
+version incremented
+configuration copied
+~~~
+
+When a newer version is published, the previously published version from the same ruleKey is retired:
+
+~~~text
+before
+v1 PUBLISHED
+v2 APPROVED
+
+publish(v2)
+
+after
+v1 RETIRED
+v2 PUBLISHED
+~~~
+
+The application layer coordinates these operations through the RuleRepository port. The domain owns lifecycle invariants; the application owns orchestration; infrastructure implements persistence.
+
+Flyway migration V4 adds:
+
+~~~text
+rule_definition.version
+rule_definition.rule_key
+CHECK (version > 0)
+UNIQUE (rule_key, version)
+~~~
+
+Permanent unit coverage now includes:
+
+~~~text
+RuleConditionTest
+ConditionGroupTest
+RuleDefinitionTest
+RuleUseCasesTest
+~~~
+
+These tests cover domain invariants, lifecycle transitions, version creation and application orchestration with Mockito. Repository/JPA integration tests remain intentionally deferred to Phase 15.
+
+Detailed notes are available in:
+
+~~~text
+docs/phase-11-rule-configuration.md
+~~~
+
 ## Development Roadmap
 
 ~~~text
@@ -731,4 +832,4 @@ test: add repository integration coverage
 
 ---
 
-**Current next step:** Phase 11 — Rule Configuration.
+**Current next step:** Phase 12 — Rule Engine Core.
