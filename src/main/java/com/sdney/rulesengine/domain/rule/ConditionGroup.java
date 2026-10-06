@@ -9,6 +9,7 @@ public class ConditionGroup {
     private final List<RuleCondition> conditions = new ArrayList<>();
 
     public ConditionGroup(LogicalOperator logicalOperator) {
+
         if (logicalOperator == null) {
             throw new IllegalArgumentException("LogicalOperator is required");
         }
@@ -16,7 +17,8 @@ public class ConditionGroup {
     }
 
     public void addCondition(RuleCondition condition) {
-        if (condition == null) {
+
+        if(condition == null){
             throw new IllegalArgumentException("Condition is required");
         }
         conditions.add(condition);

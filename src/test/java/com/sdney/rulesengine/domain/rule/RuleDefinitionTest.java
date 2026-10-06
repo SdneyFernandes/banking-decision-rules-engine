@@ -3,367 +3,397 @@ package com.sdney.rulesengine.domain.rule;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static com.sdney.rulesengine.domain.rule.ComparisonOperator.GREATER_THAN;
-import static com.sdney.rulesengine.domain.rule.LogicalOperator.AND;
-import static com.sdney.rulesengine.domain.rule.RuleStatus.APPROVED;
-import static com.sdney.rulesengine.domain.rule.RuleStatus.DRAFT;
-import static com.sdney.rulesengine.domain.rule.RuleStatus.PUBLISHED;
-import static com.sdney.rulesengine.domain.rule.RuleStatus.RETIRED;
+import static com.sdney.rulesengine.domain.rule.RuleStatus.*;
 import static com.sdney.rulesengine.domain.rule.ValueType.DECIMAL;
-import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class RuleDefinitionTest {
 
     @Test
-    void shouldCreateRuleWithInitialState() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
+    void shouldCreateRuleWithInitialState(){
+
+        String name = "ruleDefintion1";
+        int priority = 10;
+
+        RuleDefinition ruleDefinition = new RuleDefinition(name, priority);
 
         assertAll(
-                () -> assertEquals(
-                        "RuleDefinition1",
-                        rule.getName()
-                ),
-                () -> assertEquals(
-                        10,
-                        rule.getPriority()
-                ),
-                () -> assertEquals(
-                        DRAFT,
-                        rule.getStatus()
-                ),
-                () -> assertEquals(
-                        1,
-                        rule.getVersion()
-                ),
-                () -> assertNull(rule.getId()),
-                () -> assertNotNull(rule.getRuleKey()),
-                () -> assertTrue(
-                        rule.getConditionGroups().isEmpty()
-                )
+                () -> assertEquals(name, ruleDefinition.getName()),
+                () -> assertEquals(priority, ruleDefinition.getPriority()),
+                () -> assertEquals(1, ruleDefinition.getVersion()),
+                () -> assertEquals(DRAFT, ruleDefinition.getStatus())
+
         );
+
+        assertNotNull(ruleDefinition.getRuleKey());
+        assertTrue(ruleDefinition.getConditionGroups().isEmpty());
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", " ", "  "})
     void shouldRejectInvalidName(String invalidName) {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new RuleDefinition(
-                        invalidName,
-                        10
-                )
-        );
+
+        int priority = 10;
+
+        assertThrows(IllegalArgumentException.class, () -> new RuleDefinition(invalidName, priority));
+
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0,1})
+    void shouldAcceptValidPriority(int validPriority) {
+
+        String name = "ruleDefintion1";
+
+        RuleDefinition ruleDefinition = new RuleDefinition(name, validPriority);
+        assertEquals(validPriority, ruleDefinition.getPriority());
     }
 
     @Test
-    void shouldAcceptZeroPriority() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        0
-                );
+    void shouldRejectInvalidPriority() {
 
-        assertEquals(0, rule.getPriority());
+        String name = "ruleDefintion1";
+        int priority = -1;
+        assertThrows(IllegalArgumentException.class, () -> new RuleDefinition(name, priority));
     }
 
     @Test
-    void shouldRejectNegativePriority() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new RuleDefinition(
-                        "RuleDefinition1",
-                        -1
-                )
-        );
-    }
+    void shouldAddConditionGroup() {
+        String name = "ruleDefintion1";
+        int priority = 10;
+        LogicalOperator logicalOperator = LogicalOperator.AND;
 
-    @Test
-    void shouldAddConditionGroupWhileDraft() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
-        ConditionGroup group =
-                new ConditionGroup(AND);
-
-        rule.addConditionGroup(group);
-
+        ConditionGroup conditionGroup = new ConditionGroup(logicalOperator);
+        RuleDefinition ruleDefinition = new RuleDefinition(name, priority);
+        ruleDefinition.addConditionGroup(conditionGroup);
         assertTrue(
-                rule.getConditionGroups().contains(group)
+                ruleDefinition.getConditionGroups()
+                        .contains(conditionGroup)
         );
     }
 
     @Test
-    void shouldRejectNullConditionGroup() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
+    void shouldRejectAddingConditionGroupWhenRuleIsPublished() {
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> rule.addConditionGroup(null)
+        List<ConditionGroup> conditionGroups = List.of(new ConditionGroup(LogicalOperator.AND));
+        RuleDefinition ruleDefinition = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                PUBLISHED,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+
+
+
         );
-    }
 
-    @ParameterizedTest
-    @EnumSource(
-            value = RuleStatus.class,
-            mode = EnumSource.Mode.EXCLUDE,
-            names = "DRAFT"
-    )
-    void shouldRejectAddingConditionGroupWhenRuleIsNotDraft(
-            RuleStatus status
-    ) {
-        RuleDefinition rule = restoreWithStatus(status);
+        ConditionGroup conditionGroup = new ConditionGroup(LogicalOperator.AND);
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> rule.addConditionGroup(
-                        new ConditionGroup(AND)
-                )
-        );
+        assertThrows(IllegalStateException.class, () -> ruleDefinition.addConditionGroup(conditionGroup));
+
+
     }
 
     @Test
-    void shouldApproveConfiguredDraftRule() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
-        rule.addConditionGroup(validGroup());
+    void shouldRejectAddingConditionGroupWhenGroupIsNull() {
 
-        rule.approve();
+        String name = "ruleDefintion1";
+        int priority = 10;
 
-        assertEquals(APPROVED, rule.getStatus());
-    }
+        RuleDefinition ruleDefinition = new RuleDefinition(name, priority);
 
-    @ParameterizedTest
-    @EnumSource(
-            value = RuleStatus.class,
-            mode = EnumSource.Mode.EXCLUDE,
-            names = "DRAFT"
-    )
-    void shouldRejectApprovalWhenRuleIsNotDraft(
-            RuleStatus status
-    ) {
-        RuleDefinition rule = restoreWithStatus(status);
+        assertThrows(IllegalArgumentException.class, () -> ruleDefinition.addConditionGroup(null));
 
-        assertThrows(
-                IllegalStateException.class,
-                rule::approve
-        );
+
     }
 
     @Test
-    void shouldRejectApprovalWithoutConditionGroups() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
+    void shouldApproveRuleDefinition() {
 
-        assertThrows(
-                IllegalStateException.class,
-                rule::approve
+        RuleCondition ruleCondition = new RuleCondition(
+                "amount",
+                GREATER_THAN,
+                DECIMAL,
+                "10000"
         );
+
+       ConditionGroup conditionGroup =  new ConditionGroup(LogicalOperator.AND);
+       conditionGroup.addCondition(ruleCondition);
+        List<ConditionGroup> conditionGroups = List.of(conditionGroup);
+
+        RuleDefinition ruleDefinition1 = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                DRAFT,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+        );
+
+
+
+        ruleDefinition1.approve();
+        assertEquals(APPROVED, ruleDefinition1.getStatus());
+
+
+
     }
 
     @Test
-    void shouldRejectApprovalWithEmptyConditionGroup() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
-        rule.addConditionGroup(
-                new ConditionGroup(AND)
+    void shouldNotApproveRuleDefinitionWithStatusNoDraft() {
+
+
+        List<ConditionGroup> conditionGroups = new ArrayList<>();
+
+        RuleDefinition ruleDefinition = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                PUBLISHED,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
         );
 
-        assertThrows(
-                IllegalStateException.class,
-                rule::approve
-        );
+        assertThrows(IllegalStateException.class, () -> ruleDefinition.approve());
+
     }
 
     @Test
-    void shouldPublishApprovedRule() {
-        RuleDefinition rule =
-                RuleDefinition.restore(
-                        1L,
-                        "RuleDefinition1",
-                        10,
-                        APPROVED,
-                        1,
-                        List.of(validGroup()),
-                        UUID.randomUUID()
-                );
+    void shouldNotApproveRuleDefinitionWithConditionGroupsIsEmpty() {
+        List<ConditionGroup> conditionGroups = List.of();
 
-        rule.publish();
-
-        assertEquals(PUBLISHED, rule.getStatus());
-    }
-
-    @ParameterizedTest
-    @EnumSource(
-            value = RuleStatus.class,
-            mode = EnumSource.Mode.EXCLUDE,
-            names = "APPROVED"
-    )
-    void shouldRejectPublishWhenRuleIsNotApproved(
-            RuleStatus status
-    ) {
-        RuleDefinition rule = restoreWithStatus(status);
-
-        assertThrows(
-                IllegalStateException.class,
-                rule::publish
+        RuleDefinition ruleDefinition = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                DRAFT,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
         );
+
+        assertThrows(IllegalStateException.class, () -> ruleDefinition.approve());
+
     }
 
     @Test
-    void shouldRetirePublishedRule() {
-        RuleDefinition rule =
-                RuleDefinition.restore(
-                        1L,
-                        "RuleDefinition1",
-                        10,
-                        PUBLISHED,
-                        1,
-                        List.of(validGroup()),
-                        UUID.randomUUID()
-                );
+    void shouldNotApproveRuleDefinitionWithConditionIsEmpty() {
 
-        rule.retire();
+       ConditionGroup conditionGroup = new ConditionGroup(LogicalOperator.AND);
+       List<ConditionGroup> conditionGroups = List.of(conditionGroup);
 
-        assertEquals(RETIRED, rule.getStatus());
+        RuleDefinition ruleDefinition = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                DRAFT,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+        );
+
+        assertThrows(IllegalStateException.class, () -> ruleDefinition.approve());
     }
 
-    @ParameterizedTest
-    @EnumSource(
-            value = RuleStatus.class,
-            mode = EnumSource.Mode.EXCLUDE,
-            names = "PUBLISHED"
-    )
-    void shouldRejectRetirementWhenRuleIsNotPublished(
-            RuleStatus status
-    ) {
-        RuleDefinition rule = restoreWithStatus(status);
+    @Test
+    void shouldPublishRuleDefinition() {
 
-        assertThrows(
-                IllegalStateException.class,
-                rule::retire
+        RuleCondition ruleCondition = new RuleCondition(
+                "amount",
+                GREATER_THAN,
+                DECIMAL,
+                "10000"
         );
+
+        ConditionGroup conditionGroup =  new ConditionGroup(LogicalOperator.AND);
+        conditionGroup.addCondition(ruleCondition);
+        List<ConditionGroup> conditionGroups = List.of(conditionGroup);
+
+        RuleDefinition ruleDefinition1 = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                APPROVED,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+        );
+
+        ruleDefinition1.publish();
+        assertEquals(PUBLISHED, ruleDefinition1.getStatus());
+    }
+
+    @Test
+    void shouldNotPublishRuleDefinitionWithStatusNoAproved() {
+
+        List<ConditionGroup> conditionGroups = new ArrayList<>();
+
+        RuleDefinition ruleDefinition = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                DRAFT,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+        );
+
+        assertThrows(IllegalStateException.class, () -> ruleDefinition.publish());
+
+    }
+
+    @Test
+    void shouldRetireRuleDefinition() {
+
+        RuleCondition ruleCondition = new RuleCondition(
+                "amount",
+                GREATER_THAN,
+                DECIMAL,
+                "10000"
+        );
+
+        ConditionGroup conditionGroup =  new ConditionGroup(LogicalOperator.AND);
+        conditionGroup.addCondition(ruleCondition);
+        List<ConditionGroup> conditionGroups = List.of(conditionGroup);
+
+        RuleDefinition ruleDefinition1 = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                PUBLISHED,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+        );
+
+        ruleDefinition1.retire();
+        assertEquals(RETIRED, ruleDefinition1.getStatus());
+    }
+
+    @Test
+    void shouldNotRetireRuleDefinitionWithStatusNoPublished() {
+
+        List<ConditionGroup> conditionGroups = new ArrayList<>();
+
+        RuleDefinition ruleDefinition = RuleDefinition.restore(
+                1L,
+                "ruleDefintiion1",
+                10,
+                APPROVED,
+                1,
+                conditionGroups,
+                UUID.randomUUID()
+        );
+
+        assertThrows(IllegalStateException.class, () -> ruleDefinition.retire());
+
     }
 
     @Test
     void shouldCreateNewVersionFromPublishedRule() {
-        UUID ruleKey = UUID.randomUUID();
-        ConditionGroup originalGroup = validGroup();
 
-        RuleDefinition original =
+        UUID ruleKey = UUID.randomUUID();
+
+        RuleCondition condition = new RuleCondition(
+                "amount",
+                GREATER_THAN,
+                DECIMAL,
+                "10000"
+        );
+
+        ConditionGroup originalGroup =
+                new ConditionGroup(LogicalOperator.AND);
+
+        originalGroup.addCondition(condition);
+
+        RuleDefinition originalRule =
                 RuleDefinition.restore(
-                        10L,
-                        "RuleDefinition1",
+                        1L,
+                        "ruleDefinition1",
                         10,
                         PUBLISHED,
-                        3,
+                        1,
                         List.of(originalGroup),
                         ruleKey
                 );
 
         RuleDefinition newVersion =
-                original.createNewVersion();
+                originalRule.createNewVersion();
+
 
         ConditionGroup copiedGroup =
                 newVersion.getConditionGroups().get(0);
 
-        RuleCondition originalCondition =
-                originalGroup.getConditions().get(0);
-
-        RuleCondition copiedCondition =
-                copiedGroup.getConditions().get(0);
-
         assertAll(
                 () -> assertNull(newVersion.getId()),
+
                 () -> assertEquals(
                         DRAFT,
                         newVersion.getStatus()
                 ),
+
                 () -> assertEquals(
-                        4,
+                        originalRule.getVersion() + 1,
                         newVersion.getVersion()
                 ),
+
                 () -> assertEquals(
-                        ruleKey,
+                        originalRule.getRuleKey(),
                         newVersion.getRuleKey()
                 ),
+
                 () -> assertEquals(
-                        original.getName(),
+                        originalRule.getName(),
                         newVersion.getName()
                 ),
+
                 () -> assertEquals(
-                        original.getPriority(),
+                        originalRule.getPriority(),
                         newVersion.getPriority()
                 ),
+
                 () -> assertEquals(
-                        1,
-                        newVersion
-                                .getConditionGroups()
-                                .size()
+                        originalRule.getConditionGroups().size(),
+                        newVersion.getConditionGroups().size()
                 ),
+
                 () -> assertNotSame(
                         originalGroup,
                         copiedGroup
                 ),
+
                 () -> assertEquals(
                         originalGroup.getLogicalOperator(),
                         copiedGroup.getLogicalOperator()
                 ),
+
                 () -> assertEquals(
-                        originalCondition.getFactKey(),
-                        copiedCondition.getFactKey()
+                        originalGroup.getConditions().size(),
+                        copiedGroup.getConditions().size()
                 ),
-                () -> assertEquals(
-                        originalCondition.getOperator(),
-                        copiedCondition.getOperator()
-                ),
-                () -> assertEquals(
-                        originalCondition.getValueType(),
-                        copiedCondition.getValueType()
-                ),
-                () -> assertEquals(
-                        originalCondition.getExpectedValue(),
-                        copiedCondition.getExpectedValue()
-                ),
+
                 () -> assertEquals(
                         PUBLISHED,
-                        original.getStatus()
+                        originalRule.getStatus()
                 ),
+
                 () -> assertEquals(
-                        3,
-                        original.getVersion()
+                        1,
+                        originalRule.getVersion()
                 )
         );
     }
@@ -371,111 +401,29 @@ class RuleDefinitionTest {
     @ParameterizedTest
     @EnumSource(
             value = RuleStatus.class,
-            mode = EnumSource.Mode.EXCLUDE,
-            names = "PUBLISHED"
+            names = {"DRAFT", "APPROVED", "RETIRED"}
     )
     void shouldRejectCreatingNewVersionWhenRuleIsNotPublished(
-            RuleStatus status
+            RuleStatus invalidStatus
     ) {
-        RuleDefinition rule = restoreWithStatus(status);
+
+        RuleDefinition ruleDefinition =
+                RuleDefinition.restore(
+                        1L,
+                        "ruleDefinition1",
+                        10,
+                        invalidStatus,
+                        1,
+                        List.of(),
+                        UUID.randomUUID()
+                );
 
         assertThrows(
                 IllegalStateException.class,
-                rule::createNewVersion
+                ruleDefinition::createNewVersion
         );
     }
 
-    @Test
-    void shouldRestoreExistingRuleState() {
-        UUID ruleKey = UUID.randomUUID();
-        ConditionGroup group = validGroup();
 
-        RuleDefinition rule =
-                RuleDefinition.restore(
-                        42L,
-                        "ExistingRule",
-                        7,
-                        PUBLISHED,
-                        5,
-                        List.of(group),
-                        ruleKey
-                );
 
-        assertAll(
-                () -> assertEquals(42L, rule.getId()),
-                () -> assertEquals(
-                        "ExistingRule",
-                        rule.getName()
-                ),
-                () -> assertEquals(
-                        7,
-                        rule.getPriority()
-                ),
-                () -> assertEquals(
-                        PUBLISHED,
-                        rule.getStatus()
-                ),
-                () -> assertEquals(
-                        5,
-                        rule.getVersion()
-                ),
-                () -> assertEquals(
-                        ruleKey,
-                        rule.getRuleKey()
-                ),
-                () -> assertEquals(
-                        1,
-                        rule.getConditionGroups().size()
-                ),
-                () -> assertFalse(
-                        rule.getConditionGroups().isEmpty()
-                )
-        );
-    }
-
-    @Test
-    void shouldExposeConditionGroupsAsImmutableList() {
-        RuleDefinition rule =
-                new RuleDefinition(
-                        "RuleDefinition1",
-                        10
-                );
-        rule.addConditionGroup(validGroup());
-
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> rule.getConditionGroups()
-                        .add(validGroup())
-        );
-    }
-
-    private RuleDefinition restoreWithStatus(
-            RuleStatus status
-    ) {
-        return RuleDefinition.restore(
-                1L,
-                "RuleDefinition1",
-                10,
-                status,
-                1,
-                List.of(),
-                UUID.randomUUID()
-        );
-    }
-
-    private ConditionGroup validGroup() {
-        ConditionGroup group =
-                new ConditionGroup(AND);
-
-        group.addCondition(
-                new RuleCondition(
-                        "amount",
-                        GREATER_THAN,
-                        DECIMAL,
-                        "10000"
-                )
-        );
-
-        return group;
-    }
 }

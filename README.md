@@ -9,27 +9,20 @@ This repository is a long-term software engineering project. The goal is to evol
 **Phase 11 — Rule Configuration ✅**
 
 ~~~text
-[✅] 11.1  Domain rules and invariants
-[✅] 11.2  RuleDefinition domain model
-[✅] 11.3  ConditionGroup domain model
-[✅] 11.4  RuleCondition domain model
-[✅] 11.5  Aggregate root composition
-[✅] 11.6  DRAFT → APPROVED → PUBLISHED → RETIRED lifecycle
-[✅] 11.7  Configuration validation
-[✅] 11.8  RuleRepository application port
-[✅] 11.9  Domain ↔ JPA mapping
-[✅] 11.10 JPA persistence adapter
-[✅] 11.11 Create Rule
-[✅] 11.12 Approve Rule
-[✅] 11.13 Publish Rule
-[✅] 11.14 Rule versioning
-[✅] 11.15 Domain and application unit tests
-[✅] 11.16 Phase review and documentation
+[✅] Domain model: RuleDefinition, ConditionGroup, RuleCondition
+[✅] Lifecycle: DRAFT → APPROVED → PUBLISHED → RETIRED
+[✅] Configuration validation
+[✅] RuleRepository application port
+[✅] JpaRuleRepositoryAdapter
+[✅] Create / Approve / Publish use cases
+[✅] Rule versioning with ruleKey + version
+[✅] Domain unit tests
+[✅] Application unit tests with Mockito
 ~~~
 
-Phase 11 is complete. The system can now create, configure, approve, publish, retire and version rules while keeping domain behavior separate from persistence orchestration.
+Phase 11 is complete. Rules can now be created, configured, approved, published and versioned. When a newer version is published, the previously published version in the same rule family is retired.
 
-Durable JPA/PostgreSQL integration coverage is intentionally deferred to Phase 15 — Tests & Quality, where the persistence adapter will be exercised with Spring, Flyway and Testcontainers.
+Durable JPA/PostgreSQL integration coverage remains intentionally deferred to Phase 15 — Tests & Quality.
 
 ## Architecture
 
@@ -170,10 +163,8 @@ Priority currently represents evaluation order, not a score that is summed acros
 - Docker Compose
 - Maven
 - Git
-- JUnit 5
-- Mockito
 
-Unit testing is now part of the project through JUnit 5 and Mockito. Messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
+JUnit 5 and Mockito are now used for domain and application unit tests. Messaging, security, observability, distributed systems and cloud infrastructure will be introduced when they solve a concrete project need.
 
 ## PostgreSQL Development Environment
 
@@ -272,7 +263,7 @@ V2__create_condition_group.sql
     ↓
 V3__create_rule_condition.sql
     ↓
-V4__add_rule_versioning.sql
+V4__add_rule_version_and_key.sql
 ~~~
 
 The resulting configuration schema is:
@@ -485,47 +476,11 @@ mappedBy points to the Java attribute on the owning side, not to the SQL column 
 
 Associations use lazy loading explicitly and no cascade behavior has been introduced yet. Cascade rules will only be added when persistence behavior makes the required lifecycle clear.
 
-## Database Connection Validation
+## Database Integration Testing
 
-The project includes an explicit PostgreSQL integration test:
+Exploratory PostgreSQL/JPA tests used while learning the persistence flow are not retained as permanent coverage.
 
-~~~text
-PostgresConnectionIT
-~~~
-
-The test starts the Spring context with the local profile, obtains a real JDBC connection from the configured DataSource, executes:
-
-~~~sql
-SELECT 1
-~~~
-
-and validates the result.
-
-This verifies:
-
-~~~text
-Spring Boot
-    ↓
-DataSource
-    ↓
-HikariCP
-    ↓
-PostgreSQL JDBC Driver
-    ↓
-Docker
-    ↓
-PostgreSQL
-~~~
-
-Run the integration test with PostgreSQL running and environment variables exported:
-
-~~~bash
-set -a
-source .env
-set +a
-
-./mvnw -Dtest=PostgresConnectionIT test
-~~~
+The permanent integration-test strategy is deferred to Phase 15, where the persistence adapter will be tested with Spring, Flyway, PostgreSQL and Testcontainers.
 
 ## Test Configuration
 
@@ -665,91 +620,6 @@ The temporary exploratory JPA flow tests used during this learning step were rem
 The database was rebuilt from an empty Docker volume, Flyway reapplied V1 → V2 → V3, Hibernate validated the mappings, the persistence flow was exercised, and the Maven build completed successfully.
 
 Phase 10 is therefore closed with a reproducible persistence foundation.
-
-## Phase 11 — Rule Configuration
-
-Phase 11 introduces the first real business behavior of the rules engine.
-
-The domain model is now:
-
-~~~text
-RuleDefinition
-    │
-    ├── lifecycle
-    │   DRAFT → APPROVED → PUBLISHED → RETIRED
-    │
-    ├── version + ruleKey
-    │
-    └── ConditionGroup
-            │
-            └── RuleCondition
-~~~
-
-A new Rule starts with:
-
-~~~text
-id       = null
-status   = DRAFT
-version  = 1
-ruleKey  = generated UUID
-~~~
-
-Configuration can only change while the Rule is DRAFT. Approval requires at least one ConditionGroup and every group must contain at least one RuleCondition.
-
-Versioning creates a new DRAFT Rule instead of mutating the published version:
-
-~~~text
-v1 PUBLISHED
-     ↓ createNewVersion()
-v2 DRAFT
-
-same ruleKey
-different id after persistence
-version incremented
-configuration copied
-~~~
-
-When a newer version is published, the previously published version from the same ruleKey is retired:
-
-~~~text
-before
-v1 PUBLISHED
-v2 APPROVED
-
-publish(v2)
-
-after
-v1 RETIRED
-v2 PUBLISHED
-~~~
-
-The application layer coordinates these operations through the RuleRepository port. The domain owns lifecycle invariants; the application owns orchestration; infrastructure implements persistence.
-
-Flyway migration V4 adds:
-
-~~~text
-rule_definition.version
-rule_definition.rule_key
-CHECK (version > 0)
-UNIQUE (rule_key, version)
-~~~
-
-Permanent unit coverage now includes:
-
-~~~text
-RuleConditionTest
-ConditionGroupTest
-RuleDefinitionTest
-RuleUseCasesTest
-~~~
-
-These tests cover domain invariants, lifecycle transitions, version creation and application orchestration with Mockito. Repository/JPA integration tests remain intentionally deferred to Phase 15.
-
-Detailed notes are available in:
-
-~~~text
-docs/phase-11-rule-configuration.md
-~~~
 
 ## Development Roadmap
 

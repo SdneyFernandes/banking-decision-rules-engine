@@ -47,18 +47,6 @@ public class RuleDefinitionEntity {
     )
     private Integer priority;
 
-    @Column(
-            name = "version",
-            nullable = false
-    )
-    private Integer version;
-
-    @Column(
-            name = "rule_key",
-            nullable = false
-    )
-    private UUID ruleKey;
-
     @Generated
     @Column(
             name = "created_at",
@@ -74,27 +62,21 @@ public class RuleDefinitionEntity {
     )
     private List<ConditionGroupEntity> conditionGroups = new ArrayList<>();
 
-    public RuleDefinitionEntity(
-            String name,
-            RuleStatus status,
-            Integer priority
-    ) {
-        this(
-                name,
-                status,
-                priority,
-                1,
-                UUID.randomUUID()
-        );
-    }
+    @Column(
+            name = "version",
+            nullable = false
+    )
+    private Integer version;
 
-    public RuleDefinitionEntity(
-            String name,
-            RuleStatus status,
-            Integer priority,
-            Integer version,
-            UUID ruleKey
-    ) {
+    @Column(
+            name = "rule_key",
+            nullable = false,
+            updatable = false
+    )
+    private UUID ruleKey;
+
+
+    public RuleDefinitionEntity(String name, RuleStatus status, Integer priority, Integer version, UUID ruleKey) {
         this.name = name;
         this.status = status;
         this.priority = priority;
@@ -102,11 +84,11 @@ public class RuleDefinitionEntity {
         this.ruleKey = ruleKey;
     }
 
-    protected RuleDefinitionEntity() {
-    }
-
     public void updateStatus(RuleStatus status) {
         this.status = status;
+    }
+
+    protected RuleDefinitionEntity() {
     }
 
     public Long getId() {
@@ -121,16 +103,8 @@ public class RuleDefinitionEntity {
         return status;
     }
 
-    public Integer getPriority() {
+    public int getPriority() {
         return priority;
-    }
-
-    public Integer getVersion() {
-        return version;
-    }
-
-    public UUID getRuleKey() {
-        return ruleKey;
     }
 
     public OffsetDateTime getCreatedAt() {
@@ -139,5 +113,13 @@ public class RuleDefinitionEntity {
 
     public List<ConditionGroupEntity> getConditionGroups() {
         return conditionGroups;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public UUID getRuleKey() {
+        return ruleKey;
     }
 }

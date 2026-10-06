@@ -5,8 +5,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import static com.sdney.rulesengine.domain.rule.ComparisonOperator.GREATER_THAN;
-import static com.sdney.rulesengine.domain.rule.ValueType.DECIMAL;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,29 +13,35 @@ class RuleConditionTest {
 
     @Test
     void shouldCreateRuleConditionWithValidData() {
-        RuleCondition condition = new RuleCondition(
-                "amount",
-                GREATER_THAN,
-                DECIMAL,
-                "10000"
-        );
+        String factKey = "amount";
+        ComparisonOperator operator = ComparisonOperator.GREATER_THAN;
+        ValueType valueType = ValueType.DECIMAL;
+        String expectedValue = "10000";
+
+        RuleCondition ruleCondition =
+                new RuleCondition(
+                        factKey,
+                        operator,
+                        valueType,
+                        expectedValue
+                );
 
         assertAll(
                 () -> assertEquals(
-                        "amount",
-                        condition.getFactKey()
+                        factKey,
+                        ruleCondition.getFactKey()
                 ),
                 () -> assertEquals(
-                        GREATER_THAN,
-                        condition.getOperator()
+                        operator,
+                        ruleCondition.getOperator()
                 ),
                 () -> assertEquals(
-                        DECIMAL,
-                        condition.getValueType()
+                        valueType,
+                        ruleCondition.getValueType()
                 ),
                 () -> assertEquals(
-                        "10000",
-                        condition.getExpectedValue()
+                        expectedValue,
+                        ruleCondition.getExpectedValue()
                 )
         );
     }
@@ -50,8 +54,8 @@ class RuleConditionTest {
                 IllegalArgumentException.class,
                 () -> new RuleCondition(
                         invalidFactKey,
-                        GREATER_THAN,
-                        DECIMAL,
+                        ComparisonOperator.GREATER_THAN,
+                        ValueType.DECIMAL,
                         "10000"
                 )
         );
@@ -64,7 +68,7 @@ class RuleConditionTest {
                 () -> new RuleCondition(
                         "amount",
                         null,
-                        DECIMAL,
+                        ValueType.DECIMAL,
                         "10000"
                 )
         );
@@ -76,7 +80,7 @@ class RuleConditionTest {
                 IllegalArgumentException.class,
                 () -> new RuleCondition(
                         "amount",
-                        GREATER_THAN,
+                        ComparisonOperator.GREATER_THAN,
                         null,
                         "10000"
                 )
@@ -93,8 +97,8 @@ class RuleConditionTest {
                 IllegalArgumentException.class,
                 () -> new RuleCondition(
                         "amount",
-                        GREATER_THAN,
-                        DECIMAL,
+                        ComparisonOperator.GREATER_THAN,
+                        ValueType.DECIMAL,
                         invalidExpectedValue
                 )
         );

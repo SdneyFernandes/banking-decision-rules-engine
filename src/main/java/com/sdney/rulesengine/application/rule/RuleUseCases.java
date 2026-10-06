@@ -2,6 +2,7 @@ package com.sdney.rulesengine.application.rule;
 
 import com.sdney.rulesengine.domain.rule.ConditionGroup;
 import com.sdney.rulesengine.domain.rule.RuleDefinition;
+import com.sdney.rulesengine.domain.rule.RuleStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,17 +23,18 @@ public class RuleUseCases {
     }
 
     public RuleDefinition approve(Long id) {
+
         RuleDefinition rule = repository.findById(id)
-                .orElseThrow(() ->
+                .orElseThrow(()->
                         new IllegalArgumentException("Rule not found")
                 );
-
         rule.approve();
         return repository.save(rule);
     }
 
     @Transactional
     public RuleDefinition publish(Long id) {
+
         RuleDefinition rule = repository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Rule not found")
@@ -55,22 +57,20 @@ public class RuleUseCases {
         return repository.save(rule);
     }
 
-    public RuleDefinition addConditionGroup(
-            Long ruleId,
-            ConditionGroup group
-    ) {
+    public RuleDefinition addConditionGroup(Long ruleId, ConditionGroup group) {
         RuleDefinition rule = repository.findById(ruleId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Rule not found")
-                );
+                .orElseThrow(()->
+                        new IllegalArgumentException("Rule not found"));
 
         rule.addConditionGroup(group);
         repository.addConditionGroup(ruleId, group);
         return rule;
     }
 
+
     @Transactional
     public RuleDefinition createNewVersion(Long id) {
+
         RuleDefinition currentRule = repository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Rule not found")
@@ -96,4 +96,6 @@ public class RuleUseCases {
                         )
                 );
     }
+
+
 }

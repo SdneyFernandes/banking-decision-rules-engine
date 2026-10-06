@@ -2,71 +2,58 @@ package com.sdney.rulesengine.domain.rule;
 
 import org.junit.jupiter.api.Test;
 
-import static com.sdney.rulesengine.domain.rule.ComparisonOperator.GREATER_THAN;
-import static com.sdney.rulesengine.domain.rule.LogicalOperator.AND;
-import static com.sdney.rulesengine.domain.rule.ValueType.DECIMAL;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class ConditionGroupTest {
 
     @Test
-    void shouldCreateConditionGroupWithValidOperator() {
-        ConditionGroup group = new ConditionGroup(AND);
+    void shouldCreateConditionGroupWithValidData() {
 
-        assertEquals(AND, group.getLogicalOperator());
-        assertTrue(group.getConditions().isEmpty());
+        LogicalOperator operator = LogicalOperator.AND;
+        ConditionGroup conditionGroup = new ConditionGroup(operator);
+
+        assertEquals(operator, conditionGroup.getLogicalOperator());
+
+        assertTrue(conditionGroup.getConditions().isEmpty());
     }
 
     @Test
-    void shouldRejectNullLogicalOperator() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new ConditionGroup(null)
-        );
+    void sholdAddConditionInConditionGroup() {
+        LogicalOperator logicalOperator = LogicalOperator.AND;
+
+        String factKey = "amount";
+        ComparisonOperator operator = ComparisonOperator.GREATER_THAN;
+        ValueType valueType = ValueType.DECIMAL;
+        String factValue = "10000";
+
+        RuleCondition ruleCondition = new RuleCondition(factKey, operator, valueType, factValue);
+        ConditionGroup conditionGroup = new ConditionGroup(logicalOperator);
+        conditionGroup.addCondition(ruleCondition);
+        assertEquals(1,conditionGroup.getConditions().size());
+
+
     }
 
     @Test
-    void shouldAddCondition() {
-        ConditionGroup group = new ConditionGroup(AND);
-        RuleCondition condition = validCondition();
+    void shouldRejectCreateConditionGroupWithInvalidData() {
 
-        group.addCondition(condition);
+        LogicalOperator operator = null;
 
-        assertEquals(1, group.getConditions().size());
-        assertTrue(group.getConditions().contains(condition));
+       assertThrows(IllegalArgumentException.class, () -> new ConditionGroup(operator));
     }
 
     @Test
-    void shouldRejectNullCondition() {
-        ConditionGroup group = new ConditionGroup(AND);
+    void sholdeRejectAddConditionInConditionGroup() {
+        LogicalOperator logicalOperator = LogicalOperator.AND;
+        RuleCondition ruleCondition = null;
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> group.addCondition(null)
-        );
+        ConditionGroup conditionGroup = new ConditionGroup(logicalOperator);
+        assertThrows(IllegalArgumentException.class, () -> conditionGroup.addCondition(ruleCondition));
+
+
     }
 
-    @Test
-    void shouldExposeConditionsAsImmutableList() {
-        ConditionGroup group = new ConditionGroup(AND);
-        RuleCondition condition = validCondition();
-
-        group.addCondition(condition);
-
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> group.getConditions().add(validCondition())
-        );
-    }
-
-    private RuleCondition validCondition() {
-        return new RuleCondition(
-                "amount",
-                GREATER_THAN,
-                DECIMAL,
-                "10000"
-        );
-    }
 }

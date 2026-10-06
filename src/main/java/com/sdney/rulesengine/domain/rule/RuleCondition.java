@@ -11,17 +11,20 @@ public class RuleCondition {
             String factKey,
             ComparisonOperator operator,
             ValueType valueType,
-            String expectedValue
-    ) {
+            String expectedValue) {
+
         if (factKey == null || factKey.isBlank()) {
             throw new IllegalArgumentException("Fact Key is required");
         }
+
         if (operator == null) {
             throw new IllegalArgumentException("Comparison Operator is required");
         }
+
         if (valueType == null) {
             throw new IllegalArgumentException("Value Type is required");
         }
+
         if (expectedValue == null || expectedValue.isBlank()) {
             throw new IllegalArgumentException("Expected Value is required");
         }
@@ -47,4 +50,6 @@ public class RuleCondition {
     public String getExpectedValue() {
         return expectedValue;
     }
+
+
 }

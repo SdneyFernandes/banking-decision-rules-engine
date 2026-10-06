@@ -21,24 +21,23 @@ import java.util.UUID;
 @Repository
 public class JpaRuleRepositoryAdapter implements RuleRepository {
 
-    private final RuleDefinitionJpaRepository ruleDefinitionRepository;
-    private final ConditionGroupJpaRepository conditionGroupRepository;
-    private final RuleConditionJpaRepository ruleConditionRepository;
+    private final RuleDefinitionJpaRepository ruleJpaRepository;
+    private final ConditionGroupJpaRepository groupJpaRepository;
+    private final RuleConditionJpaRepository conditionJpaRepository;
 
-    public JpaRuleRepositoryAdapter(
-            RuleDefinitionJpaRepository ruleDefinitionRepository,
-            ConditionGroupJpaRepository conditionGroupRepository,
-            RuleConditionJpaRepository ruleConditionRepository
-    ) {
-        this.ruleDefinitionRepository = ruleDefinitionRepository;
-        this.conditionGroupRepository = conditionGroupRepository;
-        this.ruleConditionRepository = ruleConditionRepository;
+    public JpaRuleRepositoryAdapter(RuleDefinitionJpaRepository jpaRepository,
+                                    ConditionGroupJpaRepository groupJpaRepository,
+                                    RuleConditionJpaRepository conditionJpaRepository) {
+        this.ruleJpaRepository = jpaRepository;
+        this.groupJpaRepository = groupJpaRepository;
+        this.conditionJpaRepository = conditionJpaRepository;
     }
 
     @Override
-    @Transactional
     public RuleDefinition save(RuleDefinition rule) {
+
         if (rule.getId() == null) {
+
             RuleDefinitionEntity entity =
                     new RuleDefinitionEntity(
                             rule.getName(),
@@ -48,47 +47,92 @@ public class JpaRuleRepositoryAdapter implements RuleRepository {
                             rule.getRuleKey()
                     );
 
-            RuleDefinitionEntity saved =
-                    ruleDefinitionRepository.save(entity);
+            RuleDefinitionEntity savedEntity =
+                    ruleJpaRepository.save(entity);
 
-            return toDomain(saved);
+            return RuleDefinition.restore(
+                    savedEntity.getId(),
+                    savedEntity.getName(),
+                    savedEntity.getPriority(),
+                    savedEntity.getStatus(),
+                    savedEntity.getVersion(),
+                    List.of(),
+                    savedEntity.getRuleKey()
+            );
         }
 
         RuleDefinitionEntity entity =
-                ruleDefinitionRepository.findById(rule.getId())
+                ruleJpaRepository.findById(rule.getId())
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Rule not found"
-                                )
+                                new IllegalArgumentException("Rule not found")
                         );
 
         entity.updateStatus(rule.getStatus());
 
-        RuleDefinitionEntity saved =
-                ruleDefinitionRepository.save(entity);
+        ruleJpaRepository.save(entity);
 
-        return toDomain(saved);
+        return rule;
     }
 
-    @Override
     @Transactional(readOnly = true)
+    @Override
     public Optional<RuleDefinition> findById(Long id) {
-        return ruleDefinitionRepository.findById(id)
-                .map(this::toDomain);
+
+        return ruleJpaRepository.findById(id)
+                .map(entity -> {
+
+                    List<ConditionGroup> groups =
+                            entity.getConditionGroups()
+                                    .stream()
+                                    .map(groupEntity -> {
+
+                                        ConditionGroup group =
+                                                new ConditionGroup(
+                                                        groupEntity.getLogicalOperator()
+                                                );
+
+                                        groupEntity.getConditions()
+                                                .forEach(conditionEntity -> {
+
+                                                    RuleCondition condition =
+                                                            new RuleCondition(
+                                                                    conditionEntity.getFactKey(),
+                                                                    conditionEntity.getOperator(),
+                                                                    conditionEntity.getValueType(),
+                                                                    conditionEntity.getExpectedValue()
+                                                            );
+
+                                                    group.addCondition(condition);
+                                                });
+
+                                        return group;
+                                    })
+                                    .toList();
+
+                    return RuleDefinition.restore(
+                            entity.getId(),
+                            entity.getName(),
+                            entity.getPriority(),
+                            entity.getStatus(),
+                            entity.getVersion(),
+                            groups,
+                            entity.getRuleKey()
+                    );
+                });
     }
 
-    @Override
+
     @Transactional
+    @Override
     public void addConditionGroup(
             Long ruleId,
             ConditionGroup group
     ) {
+
         RuleDefinitionEntity ruleEntity =
-                ruleDefinitionRepository.findById(ruleId)
+                ruleJpaRepository.findById(ruleId)
                         .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Rule not found"
-                                )
+                                new IllegalArgumentException("Rule not found")
                         );
 
         ConditionGroupEntity groupEntity =
@@ -98,9 +142,10 @@ public class JpaRuleRepositoryAdapter implements RuleRepository {
                 );
 
         ConditionGroupEntity savedGroup =
-                conditionGroupRepository.save(groupEntity);
+                groupJpaRepository.save(groupEntity);
 
         for (RuleCondition condition : group.getConditions()) {
+
             RuleConditionEntity conditionEntity =
                     new RuleConditionEntity(
                             savedGroup,
@@ -110,65 +155,60 @@ public class JpaRuleRepositoryAdapter implements RuleRepository {
                             condition.getExpectedValue()
                     );
 
-            ruleConditionRepository.save(conditionEntity);
+            conditionJpaRepository.save(conditionEntity);
         }
     }
 
-    @Override
     @Transactional(readOnly = true)
-    public Optional<RuleDefinition> findPublishedByRuleKey(
-            UUID ruleKey
-    ) {
-        return ruleDefinitionRepository
+    @Override
+    public Optional<RuleDefinition> findPublishedByRuleKey(UUID ruleKey) {
+
+        return ruleJpaRepository
                 .findFirstByRuleKeyAndStatus(
                         ruleKey,
                         RuleStatus.PUBLISHED
                 )
-                .map(this::toDomain);
+                .map(entity -> {
+
+                    List<ConditionGroup> groups =
+                            entity.getConditionGroups()
+                                    .stream()
+                                    .map(groupEntity -> {
+
+                                        ConditionGroup group =
+                                                new ConditionGroup(
+                                                        groupEntity.getLogicalOperator()
+                                                );
+
+                                        groupEntity.getConditions()
+                                                .forEach(conditionEntity -> {
+
+                                                    RuleCondition condition =
+                                                            new RuleCondition(
+                                                                    conditionEntity.getFactKey(),
+                                                                    conditionEntity.getOperator(),
+                                                                    conditionEntity.getValueType(),
+                                                                    conditionEntity.getExpectedValue()
+                                                            );
+
+                                                    group.addCondition(condition);
+                                                });
+
+                                        return group;
+                                    })
+                                    .toList();
+
+                    return RuleDefinition.restore(
+                            entity.getId(),
+                            entity.getName(),
+                            entity.getPriority(),
+                            entity.getStatus(),
+                            entity.getVersion(),
+                            groups,
+                            entity.getRuleKey()
+                    );
+                });
     }
 
-    private RuleDefinition toDomain(
-            RuleDefinitionEntity entity
-    ) {
-        List<ConditionGroup> groups =
-                entity.getConditionGroups().stream()
-                        .map(this::toDomain)
-                        .toList();
 
-        return RuleDefinition.restore(
-                entity.getId(),
-                entity.getName(),
-                entity.getPriority(),
-                entity.getStatus(),
-                entity.getVersion(),
-                groups,
-                entity.getRuleKey()
-        );
-    }
-
-    private ConditionGroup toDomain(
-            ConditionGroupEntity entity
-    ) {
-        ConditionGroup group =
-                new ConditionGroup(
-                        entity.getLogicalOperator()
-                );
-
-        entity.getConditions().stream()
-                .map(this::toDomain)
-                .forEach(group::addCondition);
-
-        return group;
-    }
-
-    private RuleCondition toDomain(
-            RuleConditionEntity entity
-    ) {
-        return new RuleCondition(
-                entity.getFactKey(),
-                entity.getOperator(),
-                entity.getValueType(),
-                entity.getExpectedValue()
-        );
-    }
 }

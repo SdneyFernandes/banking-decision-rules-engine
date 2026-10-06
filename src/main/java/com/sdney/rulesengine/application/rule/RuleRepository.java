@@ -9,10 +9,8 @@ import java.util.UUID;
 public interface RuleRepository {
 
     RuleDefinition save(RuleDefinition rule);
-
     Optional<RuleDefinition> findById(Long id);
-
     void addConditionGroup(Long ruleId, ConditionGroup group);
-
     Optional<RuleDefinition> findPublishedByRuleKey(UUID ruleKey);
+
 }

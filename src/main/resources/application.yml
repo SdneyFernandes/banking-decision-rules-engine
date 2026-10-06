@@ -1,3 +1,7 @@
 spring:
   application:
     name: banking-decision-rules-engine
+
+  profiles:
+    default: local
+

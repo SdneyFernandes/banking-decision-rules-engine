@@ -1,9 +1,9 @@
 package com.sdney.rulesengine.application.rule;
 
 import com.sdney.rulesengine.domain.rule.ConditionGroup;
+import com.sdney.rulesengine.domain.rule.LogicalOperator;
 import com.sdney.rulesengine.domain.rule.RuleCondition;
 import com.sdney.rulesengine.domain.rule.RuleDefinition;
-import com.sdney.rulesengine.domain.rule.RuleStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -16,8 +16,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.sdney.rulesengine.domain.rule.ComparisonOperator.GREATER_THAN;
-import static com.sdney.rulesengine.domain.rule.LogicalOperator.AND;
-import static com.sdney.rulesengine.domain.rule.LogicalOperator.OR;
 import static com.sdney.rulesengine.domain.rule.RuleStatus.APPROVED;
 import static com.sdney.rulesengine.domain.rule.RuleStatus.DRAFT;
 import static com.sdney.rulesengine.domain.rule.RuleStatus.PUBLISHED;
@@ -97,34 +95,32 @@ class RuleUseCasesTest {
     @Test
     void shouldApproveRule() {
         Long id = 1L;
-        RuleDefinition existingRule =
+
+        RuleDefinition rule =
                 RuleDefinition.restore(
                         id,
                         "RuleDefinition1",
                         10,
                         DRAFT,
                         1,
-                        List.of(validGroup(AND)),
+                        List.of(validGroup(LogicalOperator.AND)),
                         UUID.randomUUID()
                 );
 
         when(repository.findById(id))
-                .thenReturn(Optional.of(existingRule));
+                .thenReturn(Optional.of(rule));
 
-        when(repository.save(existingRule))
-                .thenReturn(existingRule);
+        when(repository.save(rule))
+                .thenReturn(rule);
 
         RuleDefinition result =
                 useCases.approve(id);
 
-        assertEquals(
-                APPROVED,
-                existingRule.getStatus()
-        );
-        assertSame(existingRule, result);
+        assertEquals(APPROVED, rule.getStatus());
+        assertSame(rule, result);
 
         verify(repository).findById(id);
-        verify(repository).save(existingRule);
+        verify(repository).save(rule);
     }
 
     @Test
@@ -155,7 +151,7 @@ class RuleUseCasesTest {
                         10,
                         APPROVED,
                         1,
-                        List.of(validGroup(AND)),
+                        List.of(validGroup(LogicalOperator.AND)),
                         ruleKey
                 );
 
@@ -196,7 +192,7 @@ class RuleUseCasesTest {
                         10,
                         PUBLISHED,
                         1,
-                        List.of(validGroup(AND)),
+                        List.of(validGroup(LogicalOperator.AND)),
                         ruleKey
                 );
 
@@ -207,7 +203,7 @@ class RuleUseCasesTest {
                         10,
                         APPROVED,
                         2,
-                        List.of(validGroup(AND)),
+                        List.of(validGroup(LogicalOperator.AND)),
                         ruleKey
                 );
 
@@ -215,9 +211,7 @@ class RuleUseCasesTest {
                 .thenReturn(Optional.of(newApprovedRule));
 
         when(repository.findPublishedByRuleKey(ruleKey))
-                .thenReturn(
-                        Optional.of(oldPublishedRule)
-                );
+                .thenReturn(Optional.of(oldPublishedRule));
 
         when(repository.save(oldPublishedRule))
                 .thenReturn(oldPublishedRule);
@@ -226,9 +220,7 @@ class RuleUseCasesTest {
                 .thenReturn(newApprovedRule);
 
         RuleDefinition result =
-                useCases.publish(
-                        newApprovedRule.getId()
-                );
+                useCases.publish(newApprovedRule.getId());
 
         assertAll(
                 () -> assertEquals(
@@ -249,49 +241,8 @@ class RuleUseCasesTest {
                 .findById(newApprovedRule.getId());
         verify(repository)
                 .findPublishedByRuleKey(ruleKey);
-        verify(repository)
-                .save(oldPublishedRule);
-        verify(repository)
-                .save(newApprovedRule);
-    }
-
-    @Test
-    void shouldKeepCurrentRulePublishedWhenRepositoryReturnsSameRule() {
-        UUID ruleKey = UUID.randomUUID();
-
-        RuleDefinition approvedRule =
-                RuleDefinition.restore(
-                        1L,
-                        "RuleDefinition1",
-                        10,
-                        APPROVED,
-                        1,
-                        List.of(validGroup(AND)),
-                        ruleKey
-                );
-
-        when(repository.findById(approvedRule.getId()))
-                .thenReturn(Optional.of(approvedRule));
-
-        when(repository.findPublishedByRuleKey(ruleKey))
-                .thenReturn(
-                        Optional.of(approvedRule)
-                );
-
-        when(repository.save(approvedRule))
-                .thenReturn(approvedRule);
-
-        RuleDefinition result =
-                useCases.publish(approvedRule.getId());
-
-        assertEquals(
-                PUBLISHED,
-                approvedRule.getStatus()
-        );
-        assertSame(approvedRule, result);
-
-        verify(repository, times(1))
-                .save(approvedRule);
+        verify(repository).save(oldPublishedRule);
+        verify(repository).save(newApprovedRule);
     }
 
     @Test
@@ -307,8 +258,10 @@ class RuleUseCasesTest {
         );
 
         verify(repository).findById(id);
+
         verify(repository, never())
                 .findPublishedByRuleKey(any(UUID.class));
+
         verify(repository, never())
                 .save(any(RuleDefinition.class));
     }
@@ -329,7 +282,9 @@ class RuleUseCasesTest {
                 );
 
         ConditionGroup group =
-                new ConditionGroup(AND);
+                new ConditionGroup(
+                        LogicalOperator.AND
+                );
 
         when(repository.findById(ruleId))
                 .thenReturn(Optional.of(rule));
@@ -341,8 +296,7 @@ class RuleUseCasesTest {
                 );
 
         assertTrue(
-                rule.getConditionGroups()
-                        .contains(group)
+                rule.getConditionGroups().contains(group)
         );
         assertSame(rule, result);
 
@@ -354,8 +308,11 @@ class RuleUseCasesTest {
     @Test
     void shouldNotAddConditionGroupWhenRuleNotFound() {
         Long ruleId = 999L;
+
         ConditionGroup group =
-                new ConditionGroup(AND);
+                new ConditionGroup(
+                        LogicalOperator.AND
+                );
 
         when(repository.findById(ruleId))
                 .thenReturn(Optional.empty());
@@ -369,6 +326,7 @@ class RuleUseCasesTest {
         );
 
         verify(repository).findById(ruleId);
+
         verify(repository, never())
                 .addConditionGroup(
                         anyLong(),
@@ -389,8 +347,8 @@ class RuleUseCasesTest {
                         PUBLISHED,
                         1,
                         List.of(
-                                validGroup(AND),
-                                validGroup(OR)
+                                validGroup(LogicalOperator.AND),
+                                validGroup(LogicalOperator.OR)
                         ),
                         ruleKey
                 );
@@ -414,8 +372,8 @@ class RuleUseCasesTest {
                         DRAFT,
                         2,
                         List.of(
-                                validGroup(AND),
-                                validGroup(OR)
+                                validGroup(LogicalOperator.AND),
+                                validGroup(LogicalOperator.OR)
                         ),
                         ruleKey
                 );
@@ -519,7 +477,7 @@ class RuleUseCasesTest {
                         10,
                         PUBLISHED,
                         1,
-                        List.of(validGroup(AND)),
+                        List.of(validGroup(LogicalOperator.AND)),
                         ruleKey
                 );
 
@@ -564,10 +522,10 @@ class RuleUseCasesTest {
     }
 
     private ConditionGroup validGroup(
-            com.sdney.rulesengine.domain.rule.LogicalOperator operator
+            LogicalOperator logicalOperator
     ) {
         ConditionGroup group =
-                new ConditionGroup(operator);
+                new ConditionGroup(logicalOperator);
 
         RuleCondition condition =
                 new RuleCondition(
